@@ -1,0 +1,233 @@
+{% extends 'base.html' %}
+
+{% block title %}Database Connections - AI SQL Assistant{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <div class="md:flex md:items-center md:justify-between mb-8">
+        <div class="flex-1 min-w-0">
+            <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+                Database Connections
+            </h2>
+            <p class="mt-1 text-sm text-gray-500">
+                Manage your database connections securely
+            </p>
+        </div>
+        <div class="mt-4 flex md:mt-0 md:ml-4">
+            <button type="button" id="add-connection-btn" class="ml-3 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i data-feather="plus" class="h-4 w-4 mr-2"></i>
+                Add Connection
+            </button>
+        </div>
+    </div>
+
+    <!-- Connection List -->
+    <div id="connection-list" class="bg-white shadow overflow-hidden sm:rounded-md">
+        {% if connections %}
+        <ul role="list" class="divide-y divide-gray-200">
+            {% for connection in connections %}
+            <li>
+                <div class="px-4 py-4 sm:px-6 hover:bg-gray-50">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0 h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
+                                {% if 'postgres' in connection.db_type %}
+                                    <i data-feather="database" class="h-5 w-5 text-primary-700"></i>
+                                {% elif 'mysql' in connection.db_type %}
+                                    <i data-feather="database" class="h-5 w-5 text-primary-700"></i>
+                                {% elif 'sqlite' in connection.db_type %}
+                                    <i data-feather="hard-drive" class="h-5 w-5 text-primary-700"></i>
+                                {% else %}
+                                    <i data-feather="server" class="h-5 w-5 text-primary-700"></i>
+                                {% endif %}
+                            </div>
+                            <div class="ml-4">
+                                <div class="text-sm font-medium text-gray-900">
+                                    {{ connection.name }}
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    {{ connection.db_type }}
+                                </div>
+                                <div class="text-xs text-gray-400">
+                                    {% if connection.host %}{{ connection.host }}{% if connection.port %}:{{ connection.port }}{% endif %} / {% endif %}{{ connection.database }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex space-x-2">
+                            <a href="{{ url_for('main.sql_agent') }}?connection_id={{ connection.id }}" class="inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <i data-feather="terminal" class="h-3 w-3 mr-1"></i>
+                                Query
+                            </a>
+                            <button type="button" class="edit-connection-btn inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500" data-id="{{ connection.id }}">
+                                <i data-feather="edit" class="h-3 w-3 mr-1"></i>
+                                Edit
+                            </button>
+                            <button type="button" class="delete-connection-btn inline-flex items-center px-2.5 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" data-id="{{ connection.id }}">
+                                <i data-feather="trash-2" class="h-3 w-3 mr-1"></i>
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <div class="px-4 py-5 sm:p-6 text-center">
+            <p class="text-gray-500">No database connections found.</p>
+            <p class="mt-1 text-sm text-gray-500">
+                Add your first database connection to get started.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Connection Form Modal -->
+    <div id="connection-modal" class="fixed z-10 inset-0 overflow-y-auto hidden">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <!-- Modal panel -->
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <form id="connection-form">
+                    <input type="hidden" id="connection-id" name="id" value="">
+                    <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                        <div class="sm:flex sm:items-start">
+                            <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                    Add Database Connection
+                                </h3>
+                                <div class="mt-4 space-y-4">
+                                    <div>
+                                        <label for="name" class="block text-sm font-medium text-gray-700">Connection Name</label>
+                                        <input type="text" name="name" id="name" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                                    </div>
+                                    
+                                    <div>
+                                        <label for="db_type" class="block text-sm font-medium text-gray-700">Database Type</label>
+                                        <select id="db_type" name="db_type" class="mt-1 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm" required>
+                                            <option value="">Select a database type</option>
+                                            <option value="sqlite">SQLite</option>
+                                            <option value="postgresql">PostgreSQL</option>
+                                            <option value="mysql">MySQL</option>
+                                            <option value="mariadb">MariaDB</option>
+                                            <option value="mssql">Microsoft SQL Server</option>
+                                            <option value="oracle">Oracle</option>
+                                            <option value="cockroachdb">CockroachDB</option>
+                                            <option value="snowflake">Snowflake</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="db-field" id="host-field">
+                                        <label for="host" class="block text-sm font-medium text-gray-700">Host</label>
+                                        <input type="text" name="host" id="host" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                    
+                                    <div class="db-field" id="port-field">
+                                        <label for="port" class="block text-sm font-medium text-gray-700">Port</label>
+                                        <input type="text" name="port" id="port" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                    
+                                    <div class="db-field" id="database-field">
+                                        <label for="database" class="block text-sm font-medium text-gray-700">Database</label>
+                                        <input type="text" name="database" id="database" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md" required>
+                                    </div>
+                                    
+                                    <div class="db-field" id="username-field">
+                                        <label for="username" class="block text-sm font-medium text-gray-700">Username</label>
+                                        <input type="text" name="username" id="username" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                    
+                                    <div class="db-field" id="password-field">
+                                        <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
+                                        <input type="password" name="password" id="password" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                    </div>
+                                    
+                                    <div id="additional-params" class="hidden">
+                                        <div class="py-2">
+                                            <div class="border-t border-gray-200"></div>
+                                        </div>
+                                        <h4 class="text-sm font-medium text-gray-700">Additional Parameters</h4>
+                                        
+                                        <!-- Snowflake specific fields -->
+                                        <div class="snowflake-field hidden mt-4">
+                                            <label for="warehouse" class="block text-sm font-medium text-gray-700">Warehouse</label>
+                                            <input type="text" name="warehouse" id="warehouse" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                        </div>
+                                        
+                                        <div class="snowflake-field hidden mt-4">
+                                            <label for="schema" class="block text-sm font-medium text-gray-700">Schema</label>
+                                            <input type="text" name="schema" id="schema" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                        </div>
+                                        
+                                        <!-- MSSQL specific fields -->
+                                        <div class="mssql-field hidden mt-4">
+                                            <label for="driver" class="block text-sm font-medium text-gray-700">Driver</label>
+                                            <input type="text" name="driver" id="driver" class="mt-1 focus:ring-primary-500 focus:border-primary-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                        <button type="button" id="test-connection-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-700 text-base font-medium text-white hover:bg-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:ml-3 sm:w-auto sm:text-sm">
+                            Test Connection
+                        </button>
+                        <button type="submit" class="mt-3 w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-primary-600 text-base font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                            Save
+                        </button>
+                        <button type="button" id="cancel-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="fixed z-10 inset-0 overflow-y-auto hidden">
+        <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity" aria-hidden="true">
+                <div class="absolute inset-0 bg-gray-500 opacity-75"></div>
+            </div>
+
+            <!-- Modal panel -->
+            <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                            <i data-feather="alert-triangle" class="h-6 w-6 text-red-600"></i>
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+                                Delete Connection
+                            </h3>
+                            <div class="mt-2">
+                                <p class="text-sm text-gray-500">
+                                    Are you sure you want to delete this connection? This action cannot be undone.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="button" id="confirm-delete-btn" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
+                        Delete
+                    </button>
+                    <button type="button" id="cancel-delete-btn" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dbconnection.js') }}"></script>
+{% endblock %}

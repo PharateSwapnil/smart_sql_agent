@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block title %}SQL Agent - AI SQL Assistant{% endblock %}
+
+{% block head %}
+<style>
+    .chat-container {
+        height: calc(100vh - 300px);
+        min-height: 400px;
+    }
+    
+    .schema-panel {
+        max-height: calc(100vh - 250px);
+        overflow-y: auto;
+    }
+    
+    .sql-editor-container {
+        height: 200px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6">Smart SQL Agent</h1>
+    
+    <!-- Database selector -->
+    <div class="mb-6 bg-white shadow rounded-lg p-4">
+        <label for="connection-select" class="block text-sm font-medium text-gray-700 mb-2">Database Connection</label>
+        <div class="flex items-center">
+            <select id="connection-select" class="flex-grow mr-4 block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm">
+                <option value="">Select a database connection</option>
+                {% for connection in connections %}
+                <option value="{{ connection.id }}">{{ connection.name }} ({{ connection.db_type }})</option>
+                {% endfor %}
+            </select>
+            <a href="{{ url_for('main.connection') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                <i data-feather="plus" class="h-4 w-4 mr-2"></i>
+                Add Connection
+            </a>
+        </div>
+    </div>
+    
+    <!-- Main interface area -->
+    <div class="lg:grid lg:grid-cols-3 lg:gap-6">
+        <!-- Left Panel: Schema Viewer -->
+        <div id="schema-panel" class="bg-white shadow rounded-lg p-4 schema-panel hidden lg:block">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-medium text-gray-900">Database Schema</h2>
+                <button type="button" id="schema-toggle-left" class="text-gray-400 hover:text-gray-500">
+                    <i data-feather="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+            <div id="schema-container" class="overflow-y-auto pr-2">
+                <div class="p-4 text-center text-gray-500">
+                    <p>No database connection selected</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Middle Panel: SQL Agent Chat -->
+        <div class="lg:col-span-2 bg-white shadow rounded-lg p-4 mb-6 lg:mb-0">
+            <!-- Top bar with controls -->
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-medium text-gray-900">Ask the SQL Assistant</h2>
+                <div class="flex items-center">
+                    <button type="button" id="schema-toggle" class="flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 mr-2 lg:hidden">
+                        <i data-feather="database" class="h-4 w-4 mr-1"></i>
+                        Schema
+                    </button>
+                    <button type="button" id="clear-chat-btn" class="flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                        <i data-feather="trash-2" class="h-4 w-4 mr-1"></i>
+                        Clear
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Chat message container -->
+            <div id="chat-messages" class="chat-container bg-gray-50 rounded-lg p-4 mb-4 overflow-y-auto">
+                <div class="flex justify-center">
+                    <div class="bg-white shadow-sm rounded-lg p-4 text-center max-w-md">
+                        <div class="text-primary-600 mb-2">
+                            <i data-feather="message-square" class="h-8 w-8 mx-auto"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-900 mb-1">Ask anything about your database</h3>
+                        <p class="text-gray-500 text-sm">
+                            I can help you write SQL queries, explore your schema, and analyze your data.
+                        </p>
+                        <div class="mt-4 space-y-2">
+                            <div class="bg-gray-100 rounded-md p-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-200 example-prompt">
+                                Show me all tables in this database
+                            </div>
+                            <div class="bg-gray-100 rounded-md p-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-200 example-prompt">
+                                Find customers who made a purchase in the last 30 days
+                            </div>
+                            <div class="bg-gray-100 rounded-md p-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-200 example-prompt">
+                                Generate a query to analyze product sales by month
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat input -->
+            <form id="prompt-form" class="connection-dependent opacity-50 pointer-events-none">
+                <div class="flex items-center">
+                    <div class="flex-grow relative rounded-md shadow-sm">
+                        <input type="text" id="prompt-input" class="focus:ring-primary-500 focus:border-primary-500 block w-full pl-4 pr-12 py-3 sm:text-sm border-gray-300 rounded-md" placeholder="Ask a question or describe the SQL you need...">
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <button type="submit" class="p-1 rounded-full text-primary-600 hover:text-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <i data-feather="send" class="h-5 w-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- SQL Editor and Results -->
+    <div class="mt-6">
+        <div class="bg-white shadow rounded-lg p-4">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-medium text-gray-900">SQL Editor</h2>
+                <div class="flex items-center">
+                    <button type="button" id="format-sql-btn" class="flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 mr-2">
+                        <i data-feather="align-left" class="h-4 w-4 mr-1"></i>
+                        Format
+                    </button>
+                    <button type="button" id="execute-query-btn" class="flex items-center px-3 py-1.5 border border-transparent rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 connection-dependent opacity-50 pointer-events-none">
+                        <i data-feather="play" class="h-4 w-4 mr-1"></i>
+                        Execute
+                    </button>
+                </div>
+            </div>
+            
+            <!-- SQL Editor -->
+            <div class="sql-editor-container mb-4">
+                <textarea id="sql-editor" class="h-full w-full"></textarea>
+            </div>
+            
+            <!-- Query Results -->
+            <div id="query-results" class="bg-gray-50 rounded-lg p-4 overflow-x-auto">
+                <div class="text-center py-8 text-gray-500">
+                    <p>Execute a query to see results</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/sqlEditor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/sqlAgent.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Initialize clear chat button
+        const clearChatBtn = document.getElementById('clear-chat-btn');
+        if (clearChatBtn) {
+            clearChatBtn.addEventListener('click', function() {
+                const chatMessages = document.getElementById('chat-messages');
+                if (chatMessages) {
+                    chatMessages.innerHTML = `
+                        <div class="flex justify-center">
+                            <div class="bg-white shadow-sm rounded-lg p-4 text-center max-w-md">
+                                <div class="text-primary-600 mb-2">
+                                    <i data-feather="message-square" class="h-8 w-8 mx-auto"></i>
+                                </div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-1">Ask anything about your database</h3>
+                                <p class="text-gray-500 text-sm">
+                                    I can help you write SQL queries, explore your schema, and analyze your data.
+                                </p>
+                                <div class="mt-4 space-y-2">
+                                    <div class="bg-gray-100 rounded-md p-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-200 example-prompt">
+                                        Show me all tables in this database
+                                    </div>
+                                    <div class="bg-gray-100 rounded-md p-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-200 example-prompt">
+                                        Find customers who made a purchase in the last 30 days
+                                    </div>
+                                    <div class="bg-gray-100 rounded-md p-2 text-sm text-gray-700 cursor-pointer hover:bg-gray-200 example-prompt">
+                                        Generate a query to analyze product sales by month
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    feather.replace();
+                    
+                    // Re-initialize example prompts
+                    initExamplePrompts();
+                }
+            });
+        }
+        
+        // Initialize format SQL button
+        const formatSqlBtn = document.getElementById('format-sql-btn');
+        if (formatSqlBtn && window.formatEditorSql && window.sqlEditor) {
+            formatSqlBtn.addEventListener('click', function() {
+                formatEditorSql(sqlEditor);
+            });
+        }
+        
+        // Initialize schema toggle for left panel
+        const schemaToggleLeft = document.getElementById('schema-toggle-left');
+        const schemaPanel = document.getElementById('schema-panel');
+        
+        if (schemaToggleLeft && schemaPanel) {
+            schemaToggleLeft.addEventListener('click', function() {
+                schemaPanel.classList.add('hidden');
+            });
+        }
+        
+        // Initialize example prompts
+        initExamplePrompts();
+        
+        function initExamplePrompts() {
+            document.querySelectorAll('.example-prompt').forEach(prompt => {
+                prompt.addEventListener('click', function() {
+                    const promptInput = document.getElementById('prompt-input');
+                    if (promptInput) {
+                        promptInput.value = this.textContent.trim();
+                        // Trigger the form submission
+                        document.getElementById('prompt-form').dispatchEvent(new Event('submit'));
+                    }
+                });
+            });
+        }
+    });
+</script>
+{% endblock %}
